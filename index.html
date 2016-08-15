@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="lnmunhoz">
+
+    <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/2.1.0/knockout-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.1/Chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.3/socket.io.min.js"></script>
+    <title></title>
+</head>
+
+<body>
+
+    <div>
+        <h2 align="center">Egrow</h2>
+        <h2>Análisis de variables</h2>
+        <h2>Presencia de humedad.</h2>
+        <canvas id="canvas-humedad" height="450" width="400" style="margin: 50px;"></canvas>
+        <h3 height="450" width="400" style="margin: 10px; color: rgb(151, 0, 205);">Último registro :       <spam id="last_humedad">5</spam> PPM</h3>
+<hr>
+        <h2>temperaturaeratura.<h2>
+        <canvas id="canvas-temperatura" height="450" width="400" style="margin: 50px;"></canvas>
+        <h3 height="450" width="400" style="margin: 10px; color: rgb(151, 187, 0);">Último registro : <spam id="last_temperatura">5</spam>°C</h3>
+<hr>
+        <h2>Nivel de luz.</h2>
+        <canvas id="canvas-luz" height="450" width="400" style="margin: 50px;"></canvas>
+        <h3 height="450" width="400" style="margin: 10px; color: rgb(0, 187, 205);">Último registro :          <spam id="last_luz">5</spam></h3>
+
+    </div>
+
+    <script type="text/javascript">
+        function MainViewModel(data) {
+            var self = this;
+            var socket = io.connect('citec.ec:8080');
+            var dat_humedad = [0,0,0,0,0,0,0,0,0,0,0,0,0]
+            var dat_temperatura = [0.5,0.10,0.50,10,0,0,0,0,0,0,0,0,0]
+            var dat_luz = [0.5,0.10,0.50,10,0,0,0,0,0,0,0,0,0]
+
+            self.lineChartData = ko.observable({
+                labels: ["26s", "24s","22s","hace 20s","hace 18s","hace 16s","hace 14s", "hace 12s", "hace 10s", "hace 8s", "hace 6s", "hace 4s", "hace 2s"],
+                datasets: [{
+                    label: "My First dataset",
+                    fillColor: "rgba(151,0,205,0.5)",
+                    strokeColor: "rgba(151,0,205,1)",
+                    pointColor: "rgba(151,187,205,1)",
+                    pointStrokeColor: "#fff",
+                    data:dat_humedad,
+                }]
+            });
+
+            self.lineChartData_luz = ko.observable({
+                labels: ["26s", "24s","22s","hace 20s","hace 18s","hace 16s","hace 14s", "hace 12s", "hace 10s", "hace 8s", "hace 6s", "hace 4s", "hace 2s"],
+                datasets: [{
+                    fillColor: "rgba(151,187,205,0.5)",
+                    strokeColor: "rgba(0,187,205,1)",
+                    pointColor: "rgba(151,187,205,1)",
+                    pointStrokeColor: "#fff",
+                    data:dat_luz,
+                }]
+            });
+
+            self.lineChartData_temperatura = ko.observable({
+                labels: ["26s", "24s","22s","hace 20s","hace 18s","hace 16s","hace 14s", "hace 12s", "hace 10s", "hace 8s", "hace 6s", "hace 4s", "hace 2s"],
+                datasets: [{
+                    fillColor: "rgba(151,187,0,0.5)",
+                    strokeColor: "rgba(151,187,205,1)",
+                    pointColor: "rgba(151,187,205,1)",
+                    pointStrokeColor: "#fff",
+                    data:dat_temperatura,
+                }]
+            });
+
+            socket.on('pushdata_humedad', function(data) {
+                self.lineChartData().datasets[0].data.shift();
+                self.lineChartData().datasets[0].data.push(data);
+                self.initLine();
+                $("#last_humedad").text(data);
+                });
+
+            socket.on('init_humedad', function(dat){
+               self.lineChartData().datasets[0].data = dat;
+               self.initLine();
+               $("#last_humedad").text(dat.pop());
+            });
+socket.on('pushdata_temperatura', function(data) {
+                self.lineChartData_temperatura().datasets[0].data.shift();
+                self.lineChartData_temperatura().datasets[0].data.push(data);
+                self.initLine_temperatura();
+                $("#last_temperatura").text(data);
+                });
+
+            socket.on('init_temperatura', function(dat){
+               self.lineChartData_temperatura().datasets[0].data = dat;
+               self.initLine_temperatura();
+               $("#last_temperatura").text(dat.pop());
+            });
+
+            socket.on('pushdata_luz', function(data) {
+                self.lineChartData_luz().datasets[0].data.shift();
+                self.lineChartData_luz().datasets[0].data.push(data);
+                self.initLine_luz();
+                $("#last_luz").text(data);
+                });
+
+            socket.on('init_luz', function(dat){
+               self.lineChartData_luz().datasets[0].data = dat;
+               self.initLine_luz();
+               $("#last_luz").text(dat.pop());
+            });
+
+
+                self.initLine = function() {
+                var options = {
+                    animation: false,
+                    scaleOverride: true,
+                    scaleSteps: 10, // The number of steps in a hard coded scale
+                    scaleStepWidth: 10, // The value jump in the hard coded scale
+                    scaleStartValue: 0 // The scale starting value
+                };
+                var ctx_humedad = $("#canvas-humedad").get(0).getContext("2d");
+                var myLine = new Chart(ctx_humedad).Line(vm.lineChartData(), options);
+
+            }
+        self.initLine = function() {
+                var options = {
+                    animation: false,
+                    scaleOverride: true,
+                    scaleSteps: 10, // The number of steps in a hard coded scale
+                    scaleStepWidth: 10, // The value jump in the hard coded scale
+                    scaleStartValue: 0 // The scale starting value
+                };
+                var ctx_humedad = $("#canvas-humedad").get(0).getContext("2d");
+                var myLine = new Chart(ctx_humedad).Line(vm.lineChartData(), options);
+
+            }
+                self.initLine_luz = function() {
+                var options = {
+                    animation: false,
+                    scaleOverride: true,
+                    scaleSteps: 10, // The number of steps in a hard coded scale
+                    scaleStepWidth: 20, // The value jump in the hard coded scale
+                    scaleStartValue: 0 // The scale starting value
+                };
+                var ctx_luz = $("#canvas-luz").get(0).getContext("2d");
+                var myLine = new Chart(ctx_luz).Line(vm.lineChartData_luz(), options);
+
+            }
+                self.initLine_temperatura = function() {
+                var options = {
+                    animation: false,
+                    scaleOverride: true,
+                    scaleSteps: 10, // The number of steps in a hard coded scale
+                    scaleStepWidth: 10, // The value jump in the hard coded scale
+                    scaleStartValue: -30 // The scale starting value
+                };
+
+                var ctx_temperatura = $("#canvas-temperatura").get(0).getContext("2d");
+                var myLine = new Chart(ctx_temperatura).Line(vm.lineChartData_temperatura(), options);
+            }
+
+        }
+
+        var vm = new MainViewModel();
+        ko.applyBindings(vm);
+        vm.initLine();
+    </script>
+</body>
+
+</html>
+

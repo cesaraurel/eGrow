@@ -6,7 +6,8 @@
 #include <PubSubClient.h>
 
 //----------------------- mqtt -----------------------------
-char msg[50];
+// the array of char is very long with 50 better with 20 is ok
+char msg[20];
 
 // Update these with values suitable for your network.
 byte mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xED };

@@ -1,4 +1,5 @@
-var app = require('express')();
+var express = require('express');
+var app = express();
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
 var mqtt = require('mqtt');
@@ -11,6 +12,7 @@ var fs = require('fs');
 var client = mqtt.connect("mqtt://citec.ec");
 server.listen(8888);
 
+app.use(express.static('public'));
 
 client.on('connect', function () {
   client.subscribe('humedad');
@@ -80,6 +82,7 @@ connection.connect(function(err){
             console.log("Error connecting database ... ");
     }
 });
+
 io.on('disconnect', function(socket){
   client.end();
 });

@@ -2,17 +2,19 @@
 #include <DallasTemperature.h>
 #include <DHT.h>
 #include <SPI.h>
-#include <Ethernet.h>
 #include <PubSubClient.h>
+#include <UIPEthernet.h>
+
+EthernetClient ethClient;
+PubSubClient client(ethClient);
 
 //----------------------- mqtt -----------------------------
-// the array of char is very long with 50 better with 20 is ok
-char msg[20];
+char msg[50];
 
 // Update these with values suitable for your network.
-byte mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xED };
-IPAddress ip(192, 168, 51, 71);
-IPAddress server(104, 236, 18, 140);
+byte mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xED }; //MAC no duplicada dentro de la red
+IPAddress ip(192, 168, 3, 184);// Esta IP se utilizará cuando no estemos usando DHCP (dirección IP estática). ip(192, 168, 51, 69);
+IPAddress server(104, 236, 18, 140); //IP del servidor de CITEC
 
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
@@ -24,8 +26,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }
 
-EthernetClient ethClient;
-PubSubClient client(ethClient);
+
 
 void reconnect() {
   // Loop until we're reconnected
@@ -48,6 +49,11 @@ void reconnect() {
   }
 }
 //----------------------------------------------------------
+
+
+//----------------------- printTime -------------------------------
+unsigned long previousMillis = 0;
+const long interval = 1000;
 
 //----------------------- pH -------------------------------
 #define pHSensor A6            //pH meter Analog output to Arduino Analog Input 0
@@ -105,7 +111,17 @@ void setup() {
   
   client.setServer(server, 1883);
   client.setCallback(callback);
-  Ethernet.begin(mac, ip);
+  Ethernet.begin(mac); //DHCP.
+  //Ethernet.begin(mac,ip); //Para direccionamiento estático.
+
+  Serial.print("localIP: ");
+  Serial.println(Ethernet.localIP());
+  Serial.print("subnetMask: ");
+  Serial.println(Ethernet.subnetMask());
+  Serial.print("gatewayIP: ");
+  Serial.println(Ethernet.gatewayIP());
+  Serial.print("dnsServerIP: ");
+  Serial.println(Ethernet.dnsServerIP());
  
   sensors.begin(); //Termocupla DS18B20
   dht111.begin();  //DHT11-1
@@ -238,69 +254,76 @@ void loop() {
   char str_temp[9];
   /* 4 is mininum width, 2 is precision; float value is copied onto str_temp*/
   dtostrf(lightIntensityS1, 4, 2, str_temp);
-  client.publish("001/sensor/environment/s1/lux", str_temp);
+  client.publish("s1/lux", str_temp);
   
   double  lightIntensityS2 = light(ldrs21, ldrs22);
   dtostrf(lightIntensityS2, 4, 2, str_temp);
-  client.publish("001/sensor/environment/s2/lux", str_temp);
+  client.publish("s2/lux", str_temp);
   
   float   waterTemp = getWaterTemp();
   dtostrf(waterTemp, 4, 2, str_temp);
-  client.publish("001/sensor/water/temperature", str_temp);
+  client.publish("water/temperature", str_temp);
   
   float   waterpH = getpH();
   dtostrf(waterpH, 4, 2, str_temp);
-  client.publish("001/sensor/water/ph", str_temp);
+  client.publish("pH", str_temp);
   
   int     humCapsuleS1 = getCapsuleHum(dht111); 
   snprintf (str_temp, 75, "%.2d", humCapsuleS1);
-  client.publish("001/sensor/environment/s1/humidity", str_temp);
+  client.publish("s1/humidity", str_temp);
   
   int     tempCapsuleS1 = getCapsuleTemp(dht111);
   snprintf (str_temp, 75, "%.2d", tempCapsuleS1);
-  client.publish("001/sensor/environment/s1/temperature", str_temp);
+  client.publish("temp", str_temp);
 
   int     humCapsuleS2 = getCapsuleHum(dht112); 
   snprintf (str_temp, 75, "%.2d", humCapsuleS2);
-  client.publish("001/sensor/environment/s2/humidity", str_temp);
+  client.publish("s2/humidity", str_temp);
   
   int     tempCapsuleS2 = getCapsuleTemp(dht112);
   snprintf (str_temp, 75, "%.2d", tempCapsuleS2);
-  client.publish("001/sensor/environment/s2/temperature", str_temp);
+  client.publish("s2/temperature", str_temp);
 
-  Serial.println("_______________________e-Grow_______________________");
-  airWaterPumpONOFF();
   measureWaterFlow();
-  // to print in serial monitor
-  Serial.print("Water temperature: ");
-  Serial.print(waterTemp);
-  Serial.println("C");
-  Serial.print("Water pH: ");
-  Serial.print(waterpH);
-  Serial.println(" pH");
-  Serial.print("Capsule's light intensity sector 1: ");
-  Serial.print(lightIntensityS1);
-  Serial.println(" Lux");
-  Serial.print("Capsule's light intensity sector 2: ");
-  Serial.print(lightIntensityS2);
-  Serial.println(" Lux");
-  Serial.print("Capsule's humidity sector 1: ");
-  Serial.print(humCapsuleS1);
-  Serial.println("%");
-  Serial.print("Capsule's temperature sector 1: ");
-  Serial.print(tempCapsuleS1);
-  Serial.println("C");
-  Serial.print("Capsule's humidity sector 2: ");
-  Serial.print(humCapsuleS2);
-  Serial.println("%");
-  Serial.print("Capsule's temperature sector 2: ");
-  Serial.print(tempCapsuleS2);
-  Serial.println("C");
-  Serial.println("____________________________________________________");
-  Serial.println();
-  Serial.println();
-  Serial.println();
+  snprintf (str_temp, 75, "%.2d", l_hour);
+  client.publish("water/flow", str_temp);
   
-  delay(5000);
+  airWaterPumpONOFF();
+  
+  // to print in serial monitor
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    Serial.print("Water temperature: ");
+    Serial.print(waterTemp);
+    Serial.println("C");
+    Serial.print("Water pH: ");
+    Serial.print(waterpH);
+    Serial.println(" pH");
+    Serial.print("Water flow: ");
+    Serial.print(l_hour);
+    Serial.println(" l/hour");
+    Serial.print("Capsule's light intensity sector 1: ");
+    Serial.print(lightIntensityS1);
+    Serial.println(" Lux");
+    Serial.print("Capsule's light intensity sector 2: ");
+    Serial.print(lightIntensityS2);
+    Serial.println(" Lux");
+    Serial.print("Capsule's humidity sector 1: ");
+    Serial.print(humCapsuleS1);
+    Serial.println("%");
+    Serial.print("Capsule's temperature sector 1: ");
+    Serial.print(tempCapsuleS1);
+    Serial.println("C");
+    Serial.print("Capsule's humidity sector 2: ");
+    Serial.print(humCapsuleS2);
+    Serial.println("%");
+    Serial.print("Capsule's temperature sector 2: ");
+    Serial.print(tempCapsuleS2);
+    Serial.println("C");
+    Serial.println();
+    Serial.println("____________________________________________________");
+    Serial.println();
+  }
 }
 
